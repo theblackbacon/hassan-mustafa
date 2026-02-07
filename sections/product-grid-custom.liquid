@@ -27,9 +27,9 @@
                     data-product-handle="{{ product.handle }}"
                     aria-label="Quick view {{ product.title }}"
                   >
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                      <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-                      <path d="M12 8V12L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor">
+                      <line x1="10" y1="5" x2="10" y2="15" stroke-width="2.5" stroke-linecap="round"/>
+                      <line x1="5" y1="10" x2="15" y2="10" stroke-width="2.5" stroke-linecap="round"/>
                     </svg>
                   </button>
                 </div>
@@ -101,17 +101,19 @@
   }
 
   .grid-heading {
-    font-size: 36px;
-    font-weight: 700;
-    text-align: center;
-    margin-bottom: 40px;
+    font-size: 32px;
+    font-weight: 400;
+    text-align: left;
+    margin-bottom: 50px;
     color: #000;
+    font-family: serif;
   }
 
   .product-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 30px;
+    gap: 20px;
+    row-gap: 30px;
   }
 
   .product-grid-item {
@@ -131,8 +133,8 @@
   .product-image-wrapper {
     position: relative;
     overflow: hidden;
-    border-radius: 8px;
-    aspect-ratio: 1 / 1;
+    border-radius: 4px;
+    aspect-ratio: 3 / 4;
     background-color: #f5f5f5;
   }
 
@@ -145,21 +147,21 @@
 
   .product-quick-view {
     position: absolute;
-    bottom: 15px;
+    top: 15px;
     right: 15px;
-    width: 50px;
-    height: 50px;
+    width: 45px;
+    height: 45px;
     border-radius: 50%;
-    background-color: #fff;
-    border: none;
+    background-color: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(0, 0, 0, 0.1);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     opacity: 0;
-    transform: scale(0.8);
+    transform: scale(0.9);
     transition: all 0.3s ease;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   }
 
   .product-card-custom:hover .product-quick-view {
@@ -168,18 +170,23 @@
   }
 
   .product-quick-view:hover {
-    background-color: #000;
-    color: #fff;
+    background-color: #fff;
+    border-color: #000;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  }
+
+  .product-quick-view svg {
+    stroke: #000;
   }
 
   .product-info {
-    padding: 15px 0;
+    padding: 20px 0 0 0;
   }
 
   .product-title {
-    font-size: 18px;
-    font-weight: 600;
-    margin: 0 0 8px 0;
+    font-size: 16px;
+    font-weight: 500;
+    margin: 0 0 10px 0;
     color: #000;
   }
 
@@ -201,14 +208,14 @@
     color: #000;
   }
 
-  /* Popup Styles */
+  /* Popup Styles - Pixel Perfect Implementation */
   .product-popup-overlay {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.7);
+    background-color: rgba(0, 0, 0, 0.75);
     z-index: 9999;
     display: none;
     align-items: center;
@@ -225,14 +232,15 @@
 
   .product-popup-container {
     background-color: #fff;
-    max-width: 900px;
+    max-width: 850px;
     width: 100%;
     max-height: 90vh;
     overflow-y: auto;
     position: relative;
-    border-radius: 12px;
-    transform: scale(0.9);
+    border-radius: 0;
+    transform: scale(0.95);
     transition: transform 0.3s ease;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
   }
 
   .product-popup-overlay.active .product-popup-container {
@@ -241,100 +249,111 @@
 
   .popup-close {
     position: absolute;
-    top: 20px;
-    right: 20px;
-    width: 40px;
-    height: 40px;
+    top: 15px;
+    right: 15px;
+    width: 35px;
+    height: 35px;
     border: none;
-    background-color: #fff;
-    border-radius: 50%;
+    background-color: transparent;
+    border-radius: 0;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 10;
-    transition: background-color 0.3s ease;
+    transition: all 0.2s ease;
   }
 
   .popup-close:hover {
-    background-color: #f5f5f5;
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+
+  .popup-close svg {
+    stroke: #000;
   }
 
   .popup-content {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 40px;
-    padding: 40px;
+    gap: 0;
+    padding: 0;
   }
 
   .popup-image {
-    border-radius: 8px;
+    border-radius: 0;
     overflow: hidden;
-    background-color: #f5f5f5;
+    background-color: #f8f8f8;
+    min-height: 500px;
   }
 
   .popup-image img {
     width: 100%;
-    height: auto;
+    height: 100%;
+    object-fit: cover;
     display: block;
   }
 
   .popup-details {
     display: flex;
     flex-direction: column;
+    padding: 50px 40px;
   }
 
   #popupTitle {
-    font-size: 28px;
-    font-weight: 700;
-    margin: 0 0 15px 0;
+    font-size: 24px;
+    font-weight: 500;
+    margin: 0 0 12px 0;
     color: #000;
   }
 
   .popup-price {
-    font-size: 24px;
-    font-weight: 700;
-    margin-bottom: 20px;
+    font-size: 22px;
+    font-weight: 400;
+    margin-bottom: 25px;
     color: #000;
   }
 
   .popup-description {
-    font-size: 14px;
-    line-height: 1.6;
-    margin-bottom: 30px;
+    font-size: 13px;
+    line-height: 1.8;
+    margin-bottom: 35px;
     color: #666;
   }
 
   .popup-variants {
-    margin-bottom: 25px;
+    margin-bottom: 30px;
   }
 
   .variant-option {
-    margin-bottom: 20px;
+    margin-bottom: 25px;
   }
 
   .variant-label {
     display: block;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
     color: #000;
+    text-transform: capitalize;
   }
 
   .variant-values {
     display: flex;
-    gap: 10px;
+    gap: 12px;
     flex-wrap: wrap;
   }
 
   .variant-value {
-    padding: 10px 20px;
-    border: 2px solid #ddd;
+    padding: 12px 24px;
+    border: 1.5px solid #e0e0e0;
     background-color: #fff;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
     font-size: 14px;
-    border-radius: 4px;
+    border-radius: 0;
+    font-weight: 400;
+    min-width: 80px;
+    text-align: center;
   }
 
   .variant-value:hover {
@@ -349,37 +368,53 @@
 
   .variant-select {
     width: 100%;
-    padding: 12px 15px;
-    border: 2px solid #ddd;
-    border-radius: 4px;
+    padding: 14px 18px;
+    border: 1.5px solid #e0e0e0;
+    border-radius: 0;
     font-size: 14px;
     cursor: pointer;
     background-color: #fff;
+    font-family: inherit;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L6 6L11 1' stroke='%23000' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 18px center;
+    padding-right: 45px;
+  }
+
+  .variant-select:hover {
+    border-color: #000;
+  }
+
+  .variant-select:focus {
+    outline: none;
+    border-color: #000;
   }
 
   .popup-add-to-cart {
     width: 100%;
-    padding: 16px 32px;
+    padding: 18px 32px;
     background-color: #000;
     color: #fff;
     border: none;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 1.5px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
+    gap: 12px;
     transition: all 0.3s ease;
     margin-top: auto;
+    border-radius: 0;
   }
 
   .popup-add-to-cart:hover {
     background-color: #333;
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
   }
 
   .popup-add-to-cart:disabled {
