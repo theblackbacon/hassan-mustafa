@@ -12,39 +12,39 @@
         "cta_text": "CHOOSE GIFT",
         "cta_link": "#product-grid",
         "tagline": "SUSTAINABLE, ETHICALLY MADE CLOTHES IN SIZES XXS TO 6XL",
-        "background_color": "#f5f5f5"
+        "background_color": "#ffffff"
       }
     },
     "product-grid-custom": {
       "type": "product-grid-custom",
       "blocks": {
         "product-1": {
-          "type": "product",
+          "type": "product_cell",
           "settings": {
           }
         },
         "product-2": {
-          "type": "product",
+          "type": "product_cell",
           "settings": {
           }
         },
         "product-3": {
-          "type": "product",
+          "type": "product_cell",
           "settings": {
           }
         },
         "product-4": {
-          "type": "product",
+          "type": "product_cell",
           "settings": {
           }
         },
         "product-5": {
-          "type": "product",
+          "type": "product_cell",
           "settings": {
           }
         },
         "product-6": {
-          "type": "product",
+          "type": "product_cell",
           "settings": {
           }
         }
