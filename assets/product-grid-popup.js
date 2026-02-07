@@ -174,10 +174,17 @@ class ProductGridPopup {
     // Set product description
     const popupDescription = document.getElementById('popupDescription');
     if (popupDescription) {
-      // Strip HTML tags for description
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = product.description;
-      popupDescription.textContent = tempDiv.textContent || tempDiv.innerText || '';
+      // Use actual description or fallback text
+      let description = product.description;
+      if (description && description.trim()) {
+        // Strip HTML tags for description
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = description;
+        popupDescription.textContent = tempDiv.textContent || tempDiv.innerText || '';
+      } else {
+        // Fallback description for products without description
+        popupDescription.innerHTML = 'This one-piece swimsuit is crafted from jersey featuring an all-over micro Monogram motif in relief.';
+      }
     }
 
     // Render variants
@@ -226,32 +233,69 @@ class ProductGridPopup {
       label.textContent = optionName;
       optionDiv.appendChild(label);
 
-      const valuesDiv = document.createElement('div');
-      valuesDiv.className = 'variant-values';
-
-      // Create buttons for each option value
-      optionValues.forEach((value, idx) => {
-        const valueBtn = document.createElement('button');
-        valueBtn.type = 'button';
-        valueBtn.className = 'variant-value';
-        valueBtn.textContent = value;
-        valueBtn.setAttribute('data-option-name', optionName);
-        valueBtn.setAttribute('data-option-value', value);
+      // Use dropdown for Size, buttons for other options like Color
+      if (optionName.toLowerCase().includes('size')) {
+        // Create dropdown for size
+        const select = document.createElement('select');
+        select.className = 'variant-select';
+        select.setAttribute('data-option-name', optionName);
         
-        // Set first value as selected by default
-        if (idx === 0) {
-          valueBtn.classList.add('selected');
-          this.variantSelections[optionName] = value;
-        }
+        // Add default option
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.textContent = `Choose your ${optionName.toLowerCase()}`;
+        defaultOption.disabled = true;
+        defaultOption.selected = true;
+        select.appendChild(defaultOption);
+        
+        // Add size options
+        optionValues.forEach((value, idx) => {
+          const option = document.createElement('option');
+          option.value = value;
+          option.textContent = value;
+          select.appendChild(option);
+          
+          // Set first actual value as selected
+          if (idx === 0) {
+            option.selected = true;
+            this.variantSelections[optionName] = value;
+          }
+        });
+        
+        select.addEventListener('change', (e) => {
+          this.handleVariantSelection(optionName, e.target.value, e.target);
+        });
+        
+        optionDiv.appendChild(select);
+      } else {
+        // Use buttons for color and other options
+        const valuesDiv = document.createElement('div');
+        valuesDiv.className = 'variant-values';
 
-        valueBtn.addEventListener('click', () => {
-          this.handleVariantSelection(optionName, value, valueBtn);
+        optionValues.forEach((value, idx) => {
+          const valueBtn = document.createElement('button');
+          valueBtn.type = 'button';
+          valueBtn.className = 'variant-value';
+          valueBtn.textContent = value;
+          valueBtn.setAttribute('data-option-name', optionName);
+          valueBtn.setAttribute('data-option-value', value);
+          
+          // Set first value as selected by default
+          if (idx === 0) {
+            valueBtn.classList.add('selected');
+            this.variantSelections[optionName] = value;
+          }
+
+          valueBtn.addEventListener('click', () => {
+            this.handleVariantSelection(optionName, value, valueBtn);
+          });
+
+          valuesDiv.appendChild(valueBtn);
         });
 
-        valuesDiv.appendChild(valueBtn);
-      });
+        optionDiv.appendChild(valuesDiv);
+      }
 
-      optionDiv.appendChild(valuesDiv);
       variantsContainer.appendChild(optionDiv);
     });
   }
@@ -277,18 +321,21 @@ class ProductGridPopup {
    * Handle variant option selection
    * @param {string} optionName - Name of the option (e.g., "Color")
    * @param {string} value - Selected value
-   * @param {HTMLElement} button - Clicked button element
+   * @param {HTMLElement} element - Clicked button or select element
    */
-  handleVariantSelection(optionName, value, button) {
+  handleVariantSelection(optionName, value, element) {
     // Update selection state
     this.variantSelections[optionName] = value;
 
-    // Update button states
-    const parentDiv = button.parentElement;
-    parentDiv.querySelectorAll('.variant-value').forEach(btn => {
-      btn.classList.remove('selected');
-    });
-    button.classList.add('selected');
+    // Update button states for button-based options
+    if (element.tagName === 'BUTTON') {
+      const parentDiv = element.parentElement;
+      parentDiv.querySelectorAll('.variant-value').forEach(btn => {
+        btn.classList.remove('selected');
+      });
+      element.classList.add('selected');
+    }
+    // For select elements, the change is automatic
 
     // Find matching variant
     this.updateSelectedVariant();
@@ -355,12 +402,15 @@ class ProductGridPopup {
       const items = [{ id: this.selectedVariant.id, quantity: 1 }];
 
       // Special logic: If variant has Black and Medium selected, add "Soft Winter Jacket"
-      const hasBlack = Object.values(this.variantSelections).some(v => 
-        v.toLowerCase() === 'black'
+      const hasBlack = Object.entries(this.variantSelections).some(([key, value]) => 
+        value.toLowerCase().trim() === 'black'
       );
-      const hasMedium = Object.values(this.variantSelections).some(v => 
-        v.toLowerCase() === 'medium'
+      const hasMedium = Object.entries(this.variantSelections).some(([key, value]) => 
+        value.toLowerCase().trim() === 'medium'
       );
+
+      console.log('Variant selections:', this.variantSelections);
+      console.log('Has Black:', hasBlack, 'Has Medium:', hasMedium);
 
       if (hasBlack && hasMedium) {
         // Fetch "Soft Winter Jacket" to get its variant ID
