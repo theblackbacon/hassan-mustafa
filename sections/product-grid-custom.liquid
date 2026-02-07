@@ -13,23 +13,26 @@
         {%- if block.settings.product != blank -%}
           {%- assign product = block.settings.product -%}
           <div class="product-grid-item" {{ block.shopify_attributes }}>
-            <div class="product-card-custom" data-product-id="{{ product.id }}">
+            <div class="product-card-custom" data-product-id="{{ product.id }}" data-product-handle="{{ product.handle }}">
               {%- if product.featured_image -%}
-                <div class="product-image-wrapper">
+                <div class="product-image-wrapper" onclick="event.stopPropagation();">
                   <img 
                     src="{{ product.featured_image | img_url: '500x500' }}" 
                     alt="{{ product.featured_image.alt | escape }}"
                     loading="lazy"
                     class="product-image"
+                    draggable="false"
                   >
                   <button 
                     class="product-quick-view" 
+                    type="button"
                     data-product-handle="{{ product.handle }}"
                     aria-label="Quick view {{ product.title }}"
+                    onclick="event.preventDefault(); event.stopPropagation();"
                   >
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor">
-                      <line x1="10" y1="5" x2="10" y2="15" stroke-width="2.5" stroke-linecap="round"/>
-                      <line x1="5" y1="10" x2="15" y2="10" stroke-width="2.5" stroke-linecap="round"/>
+                    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <line x1="11" y1="5" x2="11" y2="17" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                      <line x1="5" y1="11" x2="17" y2="11" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
                     </svg>
                   </button>
                 </div>
@@ -120,10 +123,30 @@
     position: relative;
   }
 
+  /* Prevent clicks on product card from navigating */
+  .product-card-custom a {
+    pointer-events: none;
+  }
+
+  /* Allow clicks only on our custom button */
+  .product-quick-view {
+    pointer-events: all;
+  }
+
   .product-card-custom {
     position: relative;
     cursor: pointer;
     transition: transform 0.3s ease;
+  }
+
+  /* Hide any Shopify default quick-add or quick-view buttons */
+  .product-card-custom quick-add-button,
+  .product-card-custom quick-add,
+  .product-card-custom .quick-add,
+  .product-card-custom .quick-add-button,
+  .product-card-custom [data-quick-add],
+  .product-card-custom .button--quick-add {
+    display: none !important;
   }
 
   .product-card-custom:hover {
@@ -149,19 +172,20 @@
     position: absolute;
     top: 15px;
     right: 15px;
-    width: 45px;
-    height: 45px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
-    background-color: rgba(255, 255, 255, 0.95);
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    background-color: rgba(255, 255, 255, 0.98);
+    border: none;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     opacity: 0;
-    transform: scale(0.9);
-    transition: all 0.3s ease;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    transform: scale(0.8);
+    transition: all 0.25s ease;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+    z-index: 10;
   }
 
   .product-card-custom:hover .product-quick-view {
@@ -171,12 +195,13 @@
 
   .product-quick-view:hover {
     background-color: #fff;
-    border-color: #000;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    transform: scale(1.05);
   }
 
   .product-quick-view svg {
     stroke: #000;
+    stroke-width: 2.5;
   }
 
   .product-info {
