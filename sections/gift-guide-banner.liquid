@@ -135,11 +135,23 @@
     text-decoration: none;
     border: none;
     cursor: pointer;
-    transition: background 0.2s, transform 0.2s;
+    overflow: hidden;
+    transition: background 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+  }
+  .gg-banner__cta-btn svg {
+    transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   }
   .gg-banner__cta-btn:hover {
     background: #ffd900;
-    transform: translateY(-1px);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(255, 229, 0, 0.35);
+  }
+  .gg-banner__cta-btn:hover svg {
+    transform: translateX(5px);
+  }
+  .gg-banner__cta-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(255, 229, 0, 0.25);
   }
 
   /* ── Body / background image ── */
@@ -198,17 +210,29 @@
     text-transform: uppercase;
     text-decoration: none;
     border: none;
+    overflow: hidden;
     cursor: pointer;
-    transition: background 0.2s, transform 0.2s;
+    transition: background 0.35s ease, transform 0.3s ease, box-shadow 0.3s ease;
   }
   .gg-banner__shop-btn span,
   .gg-banner__shop-btn svg {
     position: relative;
     z-index: 1;
   }
+  .gg-banner__shop-btn svg {
+    transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
   .gg-banner__shop-btn:hover {
     background: #333;
-    transform: translateY(-1px);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  }
+  .gg-banner__shop-btn:hover svg {
+    transform: translateX(6px);
+  }
+  .gg-banner__shop-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   }
 
   /* ── Bottom tagline ── */
@@ -249,6 +273,15 @@
     .gg-banner__desc {
       font-size: 13px;
     }
+    .gg-banner__shop-btn {
+      padding: 12px 24px;
+      font-size: 11px;
+      gap: 12px;
+    }
+    .gg-banner__cta-btn {
+      padding: 8px 16px;
+      font-size: 11px;
+    }
     .gg-banner__tagline {
       font-size: 9px;
       letter-spacing: 1.5px;
@@ -256,11 +289,37 @@
     }
   }
   @media (max-width: 480px) {
+    .gg-banner__topbar {
+      padding: 12px 16px;
+      gap: 8px;
+    }
+    .gg-banner__logo {
+      font-size: 13px;
+      letter-spacing: 2px;
+    }
     .gg-banner__heading {
-      font-size: 34px;
+      font-size: 32px;
+    }
+    .gg-banner__desc {
+      font-size: 12px;
+      margin-bottom: 24px;
     }
     .gg-banner__body {
-      min-height: 320px;
+      min-height: 300px;
+      padding: 0 16px 28px;
+    }
+    .gg-banner__content {
+      max-width: 100%;
+    }
+    .gg-banner__shop-btn {
+      padding: 12px 22px;
+      width: 100%;
+      justify-content: center;
+    }
+    .gg-banner__tagline {
+      font-size: 8px;
+      letter-spacing: 1.2px;
+      padding: 10px 12px;
     }
   }
 </style>
