@@ -1,566 +1,571 @@
 /**
- * Custom Product Grid Popup Handler
- * Created from scratch for test assignment
- * Features: Product quick view, variant selection, add to cart functionality
- * Dependencies: None - Pure vanilla JavaScript
+ * ============================================================================
+ * Shop the Look – Product Grid Popup Handler
+ * ============================================================================
+ *
+ * Vanilla JavaScript (no jQuery) that powers the "Shop the Look" grid section.
+ *
+ * Responsibilities
+ * ────────────────
+ * 1. Listen for clicks on ".js-stl-hotspot" buttons inside the grid.
+ * 2. Fetch the product JSON from Shopify's `/products/<handle>.js` endpoint.
+ * 3. Render a compact popup card with:
+ *    - product image, title, price & description
+ *    - dynamic variant option selectors (buttons for colour, dropdown for size)
+ * 4. Handle "Add to Cart" via `/cart/add.js` (POST, JSON body).
+ * 5. Special rule: when the selected variant includes **both** "Black" (colour)
+ *    **and** "Medium" (size), automatically add the "Soft Winter Jacket"
+ *    product to the same cart request.
+ * 6. After a successful cart add, dispatch a `cart:update` CustomEvent so the
+ *    theme's CartDrawer / header cart-count refresh automatically.
+ *
+ * Browser support: modern evergreen browsers (uses async/await, fetch, template
+ * literals, optional chaining).
+ * ============================================================================
  */
 
-class ProductGridPopup {
-  /**
-   * Initialize the popup handler
-   */
-  constructor() {
-    this.popup = null;
-    this.currentProduct = null;
-    this.selectedVariant = null;
-    this.variantSelections = {};
-    this.init();
-  }
+(function () {
+  'use strict';
+
+  /* ──────────────────────────────────────────────
+     DOM references (resolved once on init)
+     ────────────────────────────────────────────── */
+  /** @type {HTMLElement|null} */ let popup        = null;
+  /** @type {HTMLImageElement|null} */ let elImg    = null;
+  /** @type {HTMLElement|null} */ let elTitle       = null;
+  /** @type {HTMLElement|null} */ let elPrice       = null;
+  /** @type {HTMLElement|null} */ let elDesc        = null;
+  /** @type {HTMLElement|null} */ let elVariants    = null;
+  /** @type {HTMLInputElement|null} */ let elVarId  = null;
+  /** @type {HTMLFormElement|null} */ let elForm     = null;
+  /** @type {HTMLButtonElement|null} */ let elAtcBtn = null;
+
+  /* ──────────────────────────────────────────────
+     State
+     ────────────────────────────────────────────── */
+  /** Full product object returned by Shopify */
+  let currentProduct = null;
+
+  /** Currently resolved variant object */
+  let selectedVariant = null;
 
   /**
-   * Initialize event listeners and DOM elements
+   * Map of option-name → selected-value.
+   * e.g. { Color: "Black", Size: "Medium" }
+   * @type {Record<string, string>}
    */
-  init() {
-    // Wait for DOM to be ready
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => this.setupEventListeners());
-    } else {
-      this.setupEventListeners();
-    }
-  }
+  let selections = {};
+
+  /* ================================================================
+     Initialisation
+     ================================================================ */
 
   /**
-   * Set up all event listeners
+   * Resolve cached DOM references and attach all event listeners.
+   * Called once when the DOM is ready.
    */
-  setupEventListeners() {
-    // Get popup element
-    this.popup = document.getElementById('productPopup');
-    
-    if (!this.popup) {
-      console.warn('Product popup element not found');
-      return;
-    }
+  function init() {
+    popup      = document.getElementById('stlPopup');
+    elImg      = document.getElementById('stlPopupImg');
+    elTitle    = document.getElementById('stlPopupTitle');
+    elPrice    = document.getElementById('stlPopupPrice');
+    elDesc     = document.getElementById('stlPopupDesc');
+    elVariants = document.getElementById('stlPopupVariants');
+    elVarId    = document.getElementById('stlVariantId');
+    elForm     = document.getElementById('stlAddToCartForm');
+    elAtcBtn   = document.getElementById('stlAtcBtn');
 
-    // Quick view button clicks
-    document.addEventListener('click', (e) => {
-      const quickViewBtn = e.target.closest('.product-quick-view');
-      if (quickViewBtn) {
+    if (!popup) return; // Section not present on this page
+
+    /* --- Hotspot clicks (delegated) --- */
+    document.addEventListener('click', handleHotspotClick);
+
+    /* --- Close button --- */
+    const closeBtn = popup.querySelector('.js-stl-close');
+    if (closeBtn) closeBtn.addEventListener('click', closePopup);
+
+    /* --- Click on backdrop (outside the card) closes popup --- */
+    popup.addEventListener('click', function (e) {
+      if (e.target === popup) closePopup();
+    });
+
+    /* --- ESC key closes popup --- */
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && popup.getAttribute('aria-hidden') === 'false') {
+        closePopup();
+      }
+    });
+
+    /* --- Form submit → Add to Cart --- */
+    if (elForm) {
+      elForm.addEventListener('submit', function (e) {
         e.preventDefault();
-        e.stopPropagation();
-        const productHandle = quickViewBtn.getAttribute('data-product-handle');
-        this.openPopup(productHandle);
-      }
-    });
-
-    // Close button
-    const closeBtn = this.popup.querySelector('.popup-close');
-    if (closeBtn) {
-      closeBtn.addEventListener('click', () => this.closePopup());
-    }
-
-    // Close on overlay click
-    this.popup.addEventListener('click', (e) => {
-      if (e.target === this.popup) {
-        this.closePopup();
-      }
-    });
-
-    // Close on ESC key
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && this.popup.classList.contains('active')) {
-        this.closePopup();
-      }
-    });
-
-    // Add to cart form submission
-    const form = document.getElementById('popupAddToCartForm');
-    if (form) {
-      form.addEventListener('submit', (e) => {
-        e.preventDefault();
-        this.handleAddToCart();
+        handleAddToCart();
       });
     }
   }
 
+  // Boot when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+  /* ================================================================
+     Hotspot click handler
+     ================================================================ */
+
   /**
-   * Open popup and load product data
-   * @param {string} productHandle - Shopify product handle
+   * Delegated click handler – opens the popup if a hotspot was clicked.
+   * @param {MouseEvent} e
    */
-  async openPopup(productHandle) {
+  function handleHotspotClick(e) {
+    const btn = e.target.closest('.js-stl-hotspot');
+    if (!btn) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const handle = btn.getAttribute('data-product-handle');
+    if (handle) openPopup(handle);
+  }
+
+  /* ================================================================
+     Open / Close popup
+     ================================================================ */
+
+  /**
+   * Fetch product data and show the popup card.
+   * @param {string} handle – Shopify product handle
+   */
+  async function openPopup(handle) {
+    // Reset state
+    currentProduct  = null;
+    selectedVariant = null;
+    selections      = {};
+
+    // Show popup in loading state
+    showPopup();
+    setLoading(true);
+
     try {
-      // Show loading state
-      this.showLoadingState();
-      
-      // Fetch product data
-      const response = await fetch(`/products/${productHandle}.js`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch product data');
-      }
-      
-      const product = await response.json();
-      this.currentProduct = product;
-      
-      // Populate popup with product data
-      this.populatePopup(product);
-      
-      // Show popup
-      this.popup.classList.add('active');
-      this.popup.setAttribute('aria-hidden', 'false');
-      document.body.style.overflow = 'hidden';
-      
-    } catch (error) {
-      console.error('Error loading product:', error);
-      this.showErrorState();
+      const res = await fetch('/products/' + handle + '.js');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+
+      currentProduct = await res.json();
+      populatePopup(currentProduct);
+    } catch (err) {
+      console.error('[STL] Failed to load product:', err);
+      if (elTitle) elTitle.textContent = 'Unable to load product';
+    } finally {
+      setLoading(false);
     }
   }
 
-  /**
-   * Close the popup
-   */
-  closePopup() {
-    this.popup.classList.remove('active');
-    this.popup.setAttribute('aria-hidden', 'true');
+  /** Make the popup visible. */
+  function showPopup() {
+    if (!popup) return;
+    popup.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  }
+
+  /** Hide the popup and reset transient state. */
+  function closePopup() {
+    if (!popup) return;
+    popup.setAttribute('aria-hidden', 'true');
     document.body.style.overflow = '';
-    this.currentProduct = null;
-    this.selectedVariant = null;
-    this.variantSelections = {};
+    currentProduct  = null;
+    selectedVariant = null;
+    selections      = {};
   }
 
   /**
-   * Show loading state in popup
+   * Toggle a simple loading indicator on the ATC button.
+   * @param {boolean} loading
    */
-  showLoadingState() {
-    this.popup.classList.add('active');
-    const popupTitle = document.getElementById('popupTitle');
-    if (popupTitle) {
-      popupTitle.textContent = 'Loading...';
-    }
+  function setLoading(loading) {
+    if (!elAtcBtn) return;
+    elAtcBtn.disabled = loading;
   }
 
+  /* ================================================================
+     Populate popup with product data
+     ================================================================ */
+
   /**
-   * Show error state in popup
+   * Fill every element of the popup card with data from the product JSON.
+   * @param {Object} product
    */
-  showErrorState() {
-    const popupTitle = document.getElementById('popupTitle');
-    if (popupTitle) {
-      popupTitle.textContent = 'Error loading product';
+  function populatePopup(product) {
+    /* ── Image ── */
+    if (elImg && product.featured_image) {
+      elImg.src = product.featured_image;
+      elImg.alt = product.title;
     }
+
+    /* ── Title ── */
+    if (elTitle) elTitle.textContent = product.title;
+
+    /* ── Price ── */
+    if (elPrice) elPrice.textContent = formatMoney(product.price);
+
+    /* ── Description (strip HTML, clamp via CSS) ── */
+    if (elDesc) {
+      const raw = product.description || '';
+      const tmp = document.createElement('div');
+      tmp.innerHTML = raw;
+      elDesc.textContent = tmp.textContent || tmp.innerText || '';
+    }
+
+    /* ── Variants ── */
+    renderVariantSelectors(product);
+
+    /* ── Set default variant ── */
+    selectedVariant = product.variants[0];
+    if (elVarId && selectedVariant) elVarId.value = selectedVariant.id;
   }
 
-  /**
-   * Populate popup with product data
-   * @param {Object} product - Product data from Shopify
-   */
-  populatePopup(product) {
-    // Set product image
-    const popupImage = document.getElementById('popupImage');
-    if (popupImage && product.featured_image) {
-      popupImage.src = product.featured_image;
-      popupImage.alt = product.title;
-    }
-
-    // Set product title
-    const popupTitle = document.getElementById('popupTitle');
-    if (popupTitle) {
-      popupTitle.textContent = product.title;
-    }
-
-    // Set product price
-    const popupPrice = document.getElementById('popupPrice');
-    if (popupPrice) {
-      popupPrice.textContent = this.formatMoney(product.price);
-    }
-
-    // Set product description
-    const popupDescription = document.getElementById('popupDescription');
-    if (popupDescription) {
-      // Use actual description or fallback text
-      let description = product.description;
-      if (description && description.trim()) {
-        // Strip HTML tags for description
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = description;
-        popupDescription.textContent = tempDiv.textContent || tempDiv.innerText || '';
-      } else {
-        // Fallback description for products without description
-        popupDescription.innerHTML = 'This one-piece swimsuit is crafted from jersey featuring an all-over micro Monogram motif in relief.';
-      }
-    }
-
-    // Render variants
-    this.renderVariants(product);
-
-    // Set initial variant
-    this.selectedVariant = product.variants[0];
-    const variantIdInput = document.getElementById('popupVariantId');
-    if (variantIdInput) {
-      variantIdInput.value = this.selectedVariant.id;
-    }
-  }
+  /* ================================================================
+     Variant rendering
+     ================================================================ */
 
   /**
-   * Render product variants dynamically
-   * @param {Object} product - Product data
+   * Build variant-option UI dynamically from the product's `options` array.
+   *
+   * Convention used in the Figma design:
+   *   • "Size" options → `<select>` dropdown with a "Choose your size" placeholder.
+   *   • All other options (e.g. "Color") → a row of `<button>` elements.
+   *
+   * @param {Object} product – full product JSON
    */
-  renderVariants(product) {
-    const variantsContainer = document.getElementById('popupVariants');
-    if (!variantsContainer) return;
+  function renderVariantSelectors(product) {
+    if (!elVariants) return;
+    elVariants.innerHTML = '';
 
-    // Clear existing variants
-    variantsContainer.innerHTML = '';
-
-    // If product has no options or only default, don't show variant selector
-    if (!product.options || product.options.length === 0 || 
-        (product.options.length === 1 && product.options[0].name === 'Title')) {
+    // Skip rendering if there are no meaningful options
+    if (
+      !product.options ||
+      product.options.length === 0 ||
+      (product.options.length === 1 && product.options[0] === 'Title')
+    ) {
       return;
     }
 
-    // Get all option names (e.g., Color, Size)
-    const optionNames = product.options.map(opt => opt.name);
+    product.options.forEach(function (optionName, idx) {
+      const position = idx + 1;                       // Shopify uses 1-based option positions
+      const values   = getUniqueOptionValues(product, position);
+      if (values.length === 0) return;
 
-    // Create variant selectors for each option
-    optionNames.forEach((optionName, index) => {
-      const optionPosition = index + 1;
-      const optionValues = this.getOptionValues(product, optionPosition);
+      // Wrapper
+      const group = document.createElement('div');
+      group.className = 'stl__variant-group';
 
-      if (optionValues.length === 0) return;
-
-      const optionDiv = document.createElement('div');
-      optionDiv.className = 'variant-option';
-
-      const label = document.createElement('label');
-      label.className = 'variant-label';
+      // Label
+      const label = document.createElement('span');
+      label.className = 'stl__variant-label';
       label.textContent = optionName;
-      optionDiv.appendChild(label);
+      group.appendChild(label);
 
-      // Use dropdown for Size, buttons for other options like Color
-      if (optionName.toLowerCase().includes('size')) {
-        // Create dropdown for size
-        const select = document.createElement('select');
-        select.className = 'variant-select';
-        select.setAttribute('data-option-name', optionName);
-        
-        // Add default option
-        const defaultOption = document.createElement('option');
-        defaultOption.value = '';
-        defaultOption.textContent = `Choose your ${optionName.toLowerCase()}`;
-        defaultOption.disabled = true;
-        defaultOption.selected = true;
-        select.appendChild(defaultOption);
-        
-        // Add size options
-        optionValues.forEach((value, idx) => {
-          const option = document.createElement('option');
-          option.value = value;
-          option.textContent = value;
-          select.appendChild(option);
-          
-          // Set first actual value as selected
-          if (idx === 0) {
-            option.selected = true;
-            this.variantSelections[optionName] = value;
-          }
-        });
-        
-        select.addEventListener('change', (e) => {
-          this.handleVariantSelection(optionName, e.target.value, e.target);
-        });
-        
-        optionDiv.appendChild(select);
+      // Decide: dropdown for "Size", buttons for everything else
+      if (optionName.toLowerCase() === 'size') {
+        group.appendChild(buildSelect(optionName, values));
       } else {
-        // Use buttons for color and other options
-        const valuesDiv = document.createElement('div');
-        valuesDiv.className = 'variant-values';
+        group.appendChild(buildButtons(optionName, values));
+      }
 
-        optionValues.forEach((value, idx) => {
-          const valueBtn = document.createElement('button');
-          valueBtn.type = 'button';
-          valueBtn.className = 'variant-value';
-          valueBtn.textContent = value;
-          valueBtn.setAttribute('data-option-name', optionName);
-          valueBtn.setAttribute('data-option-value', value);
-          
-          // Set first value as selected by default
-          if (idx === 0) {
-            valueBtn.classList.add('selected');
-            this.variantSelections[optionName] = value;
-          }
+      elVariants.appendChild(group);
+    });
+  }
 
-          valueBtn.addEventListener('click', () => {
-            this.handleVariantSelection(optionName, value, valueBtn);
-          });
+  /**
+   * Create a `<select>` element for a given option (typically "Size").
+   * @param {string} name   – option name (e.g. "Size")
+   * @param {string[]} values – unique option values
+   * @returns {HTMLSelectElement}
+   */
+  function buildSelect(name, values) {
+    const select = document.createElement('select');
+    select.className = 'stl__variant-select';
 
-          valuesDiv.appendChild(valueBtn);
+    // Placeholder
+    const placeholder = document.createElement('option');
+    placeholder.value    = '';
+    placeholder.textContent = 'Choose your ' + name.toLowerCase();
+    placeholder.disabled = true;
+    placeholder.selected = true;
+    select.appendChild(placeholder);
+
+    values.forEach(function (val) {
+      const opt = document.createElement('option');
+      opt.value       = val;
+      opt.textContent = val;
+      select.appendChild(opt);
+    });
+
+    // Pre-select first real value
+    if (values.length > 0) {
+      select.value = values[0];
+      selections[name] = values[0];
+    }
+
+    select.addEventListener('change', function () {
+      selections[name] = select.value;
+      resolveVariant();
+    });
+
+    return select;
+  }
+
+  /**
+   * Create a row of `<button>` elements for an option (e.g. "Color").
+   * @param {string} name
+   * @param {string[]} values
+   * @returns {HTMLDivElement}
+   */
+  function buildButtons(name, values) {
+    const wrap = document.createElement('div');
+    wrap.className = 'stl__variant-btns';
+
+    values.forEach(function (val, i) {
+      const btn = document.createElement('button');
+      btn.type      = 'button';
+      btn.className = 'stl__variant-btn';
+      btn.textContent = val;
+
+      // First value is active by default
+      if (i === 0) {
+        btn.classList.add('is-active');
+        selections[name] = val;
+      }
+
+      btn.addEventListener('click', function () {
+        // Toggle active state within this group
+        wrap.querySelectorAll('.stl__variant-btn').forEach(function (b) {
+          b.classList.remove('is-active');
         });
+        btn.classList.add('is-active');
 
-        optionDiv.appendChild(valuesDiv);
-      }
-
-      variantsContainer.appendChild(optionDiv);
-    });
-  }
-
-  /**
-   * Get unique values for a specific option
-   * @param {Object} product - Product data
-   * @param {number} position - Option position (1, 2, or 3)
-   * @returns {Array} Array of unique option values
-   */
-  getOptionValues(product, position) {
-    const values = [];
-    product.variants.forEach(variant => {
-      const value = variant[`option${position}`];
-      if (value && !values.includes(value)) {
-        values.push(value);
-      }
-    });
-    return values;
-  }
-
-  /**
-   * Handle variant option selection
-   * @param {string} optionName - Name of the option (e.g., "Color")
-   * @param {string} value - Selected value
-   * @param {HTMLElement} element - Clicked button or select element
-   */
-  handleVariantSelection(optionName, value, element) {
-    // Update selection state
-    this.variantSelections[optionName] = value;
-
-    // Update button states for button-based options
-    if (element.tagName === 'BUTTON') {
-      const parentDiv = element.parentElement;
-      parentDiv.querySelectorAll('.variant-value').forEach(btn => {
-        btn.classList.remove('selected');
+        selections[name] = val;
+        resolveVariant();
       });
-      element.classList.add('selected');
-    }
-    // For select elements, the change is automatic
 
-    // Find matching variant
-    this.updateSelectedVariant();
+      wrap.appendChild(btn);
+    });
+
+    return wrap;
   }
 
-  /**
-   * Update selected variant based on current selections
-   */
-  updateSelectedVariant() {
-    if (!this.currentProduct) return;
+  /* ================================================================
+     Variant resolution
+     ================================================================ */
 
-    const variant = this.currentProduct.variants.find(v => {
-      return Object.keys(this.variantSelections).every(optionName => {
-        const optionIndex = this.currentProduct.options.findIndex(opt => opt.name === optionName);
-        if (optionIndex === -1) return true;
-        const variantValue = v[`option${optionIndex + 1}`];
-        return variantValue === this.variantSelections[optionName];
+  /**
+   * Given the current `selections` map, find the matching variant in
+   * `currentProduct.variants` and update the hidden input + displayed price.
+   */
+  function resolveVariant() {
+    if (!currentProduct) return;
+
+    const match = currentProduct.variants.find(function (v) {
+      return Object.keys(selections).every(function (optName) {
+        var idx = currentProduct.options.indexOf(optName);
+        if (idx === -1) return true;
+        return v['option' + (idx + 1)] === selections[optName];
       });
     });
 
-    if (variant) {
-      this.selectedVariant = variant;
-      
-      // Update variant ID in form
-      const variantIdInput = document.getElementById('popupVariantId');
-      if (variantIdInput) {
-        variantIdInput.value = variant.id;
-      }
+    if (match) {
+      selectedVariant = match;
+      if (elVarId) elVarId.value = match.id;
+      if (elPrice) elPrice.textContent = formatMoney(match.price);
 
-      // Update price if variant has different price
-      const popupPrice = document.getElementById('popupPrice');
-      if (popupPrice) {
-        popupPrice.textContent = this.formatMoney(variant.price);
-      }
-
-      // Update image if variant has its own image
-      if (variant.featured_image) {
-        const popupImage = document.getElementById('popupImage');
-        if (popupImage) {
-          popupImage.src = variant.featured_image.src;
-        }
+      // Swap image when the variant carries its own featured image
+      if (match.featured_image && elImg) {
+        elImg.src = match.featured_image.src;
       }
     }
   }
 
+  /* ================================================================
+     Add to Cart
+     ================================================================ */
+
   /**
-   * Handle add to cart form submission
+   * POST selected variant(s) to `/cart/add.js`.
+   * If the user picked **Black + Medium**, we also add "Soft Winter Jacket".
    */
-  async handleAddToCart() {
-    if (!this.selectedVariant) {
-      alert('Please select a variant');
-      return;
-    }
+  async function handleAddToCart() {
+    if (!selectedVariant) return;
 
-    const addToCartBtn = this.popup.querySelector('.popup-add-to-cart');
-    const originalText = addToCartBtn.innerHTML;
+    // Build items array (primary product first)
+    var items = [{ id: selectedVariant.id, quantity: 1 }];
 
-    try {
-      // Disable button and show loading state
-      addToCartBtn.disabled = true;
-      addToCartBtn.textContent = 'Adding...';
+    /* ── Special rule: Black + Medium → auto-add Soft Winter Jacket ── */
+    var hasBlack  = Object.values(selections).some(function (v) {
+      return v.toLowerCase().trim() === 'black';
+    });
+    var hasMedium = Object.values(selections).some(function (v) {
+      return v.toLowerCase().trim() === 'medium';
+    });
 
-      // Prepare cart items
-      const items = [{ id: this.selectedVariant.id, quantity: 1 }];
-
-      // Special logic: If variant has Black and Medium selected, add "Soft Winter Jacket"
-      const hasBlack = Object.entries(this.variantSelections).some(([key, value]) => 
-        value.toLowerCase().trim() === 'black'
-      );
-      const hasMedium = Object.entries(this.variantSelections).some(([key, value]) => 
-        value.toLowerCase().trim() === 'medium'
-      );
-
-      console.log('Variant selections:', this.variantSelections);
-      console.log('Has Black:', hasBlack, 'Has Medium:', hasMedium);
-
-      if (hasBlack && hasMedium) {
-        // Fetch "Soft Winter Jacket" to get its variant ID
-        try {
-          const jacketResponse = await fetch('/products/soft-winter-jacket.js');
-          if (jacketResponse.ok) {
-            const jacketProduct = await jacketResponse.json();
-            if (jacketProduct && jacketProduct.variants.length > 0) {
-              items.push({
-                id: jacketProduct.variants[0].id,
-                quantity: 1
-              });
-            }
+    if (hasBlack && hasMedium) {
+      try {
+        var jacketRes = await fetch('/products/soft-winter-jacket.js');
+        if (jacketRes.ok) {
+          var jacket = await jacketRes.json();
+          if (jacket && jacket.variants && jacket.variants.length) {
+            items.push({ id: jacket.variants[0].id, quantity: 1 });
           }
-        } catch (err) {
-          console.warn('Could not add Soft Winter Jacket:', err);
         }
+      } catch (err) {
+        console.warn('[STL] Could not fetch Soft Winter Jacket:', err);
       }
+    }
 
-      // Add items to cart using Shopify Ajax API
-      const response = await fetch('/cart/add.js', {
+    // Disable button while request is in flight
+    var origHTML = elAtcBtn.innerHTML;
+    elAtcBtn.disabled  = true;
+    elAtcBtn.textContent = 'Adding…';
+
+    try {
+      var res = await fetch('/cart/add.js', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ items })
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ items: items }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to add to cart');
-      }
+      if (!res.ok) throw new Error('Cart API returned ' + res.status);
 
-      const result = await response.json();
+      /* ── Success ── */
+      elAtcBtn.textContent = 'Added ✓';
 
-      // Success - update cart UI
-      this.updateCartCount();
-      
-      // Show success message
-      addToCartBtn.textContent = 'Added!';
-      addToCartBtn.style.backgroundColor = '#4CAF50';
+      // Refresh the theme's cart state (drawer, icon count, etc.)
+      refreshCart();
 
-      // Close popup after short delay
-      setTimeout(() => {
-        this.closePopup();
-        addToCartBtn.innerHTML = originalText;
-        addToCartBtn.style.backgroundColor = '';
-        addToCartBtn.disabled = false;
-      }, 1000);
+      // Close popup after a brief success flash
+      setTimeout(function () {
+        closePopup();
+        elAtcBtn.innerHTML = origHTML;
+        elAtcBtn.disabled  = false;
+      }, 900);
 
-    } catch (error) {
-      console.error('Error adding to cart:', error);
-      alert('Failed to add product to cart. Please try again.');
-      addToCartBtn.innerHTML = originalText;
-      addToCartBtn.disabled = false;
+    } catch (err) {
+      console.error('[STL] Add-to-cart error:', err);
+      elAtcBtn.textContent = 'Error – try again';
+      setTimeout(function () {
+        elAtcBtn.innerHTML = origHTML;
+        elAtcBtn.disabled  = false;
+      }, 2000);
     }
   }
 
+  /* ================================================================
+     Cart refresh – integrate with the theme's existing cart system
+     ================================================================ */
+
   /**
-   * Update cart count in header
+   * After adding items we:
+   *  1. Fetch the updated cart JSON.
+   *  2. Update any visible cart-count badges.
+   *  3. Dispatch a `cart:update` CustomEvent so the theme's CartDrawer
+   *     (which listens on `document`) can re-render itself.
    */
-  async updateCartCount() {
+  async function refreshCart() {
     try {
-      const response = await fetch('/cart.js');
-      const cart = await response.json();
-      
-      // Update cart count elements
-      const cartCountElements = document.querySelectorAll('[data-cart-count], .cart-count');
-      cartCountElements.forEach(el => {
+      var res  = await fetch('/cart.js', { headers: { Accept: 'application/json' } });
+      var cart = await res.json();
+
+      // Update header cart-count badges
+      document.querySelectorAll('[data-cart-count], .cart-count-bubble span, cart-icon-component .count').forEach(function (el) {
         el.textContent = cart.item_count;
       });
 
-      // Trigger cart drawer update if exists
-      if (window.theme && window.theme.CartDrawer) {
-        window.theme.CartDrawer.update();
-      }
-
-      // Dispatch custom event for cart update
-      document.dispatchEvent(new CustomEvent('cart:updated', { 
-        detail: { cart } 
-      }));
-      
-    } catch (error) {
-      console.error('Error updating cart count:', error);
+      // Dispatch the same event name the theme's CartDrawer listens for
+      document.dispatchEvent(
+        new CustomEvent('cart:update', {
+          bubbles: true,
+          detail: { cart: cart },
+        })
+      );
+    } catch (err) {
+      console.warn('[STL] Could not refresh cart state:', err);
     }
+  }
+
+  /* ================================================================
+     Helpers
+     ================================================================ */
+
+  /**
+   * Collect unique values for a product option by position (1-based).
+   * @param {Object} product
+   * @param {number} position – 1, 2 or 3
+   * @returns {string[]}
+   */
+  function getUniqueOptionValues(product, position) {
+    var seen = [];
+    product.variants.forEach(function (v) {
+      var val = v['option' + position];
+      if (val && seen.indexOf(val) === -1) seen.push(val);
+    });
+    return seen;
   }
 
   /**
-   * Format money according to shop currency
-   * @param {number} cents - Price in cents
-   * @returns {string} Formatted price
+   * Format a price (in cents/minor units) according to the shop's money format.
+   *
+   * Falls back to `${{amount}}` if `window.theme.moneyFormat` is unavailable.
+   * Supports all Shopify format placeholders.
+   *
+   * @param {number|string} cents
+   * @returns {string}
    */
-  formatMoney(cents) {
-    if (typeof cents === 'string') {
-      cents = cents.replace('.', '');
-    }
-    
-    let value = '';
-    const placeholderRegex = /\{\{\s*(\w+)\s*\}\}/;
-    const formatString = window.theme?.moneyFormat || '${{amount}}';
-    
-    function formatWithDelimiters(number, precision, thousands, decimal) {
-      precision = precision || 2;
+  function formatMoney(cents) {
+    if (typeof cents === 'string') cents = cents.replace('.', '');
+    cents = parseInt(cents, 10) || 0;
+
+    var fmt = (window.theme && window.theme.moneyFormat)
+           || (window.Theme && window.Theme.moneyFormat)
+           || '${{amount}}';
+
+    /**
+     * @param {number} num
+     * @param {number} precision
+     * @param {string} thousands
+     * @param {string} decimal
+     * @returns {string}
+     */
+    function delimit(num, precision, thousands, decimal) {
+      precision = precision == null ? 2 : precision;
       thousands = thousands || ',';
-      decimal = decimal || '.';
+      decimal   = decimal   || '.';
 
-      if (isNaN(number) || number == null) {
-        return '0';
-      }
-
-      number = (number / 100.0).toFixed(precision);
-
-      const parts = number.split('.');
-      const dollarsAmount = parts[0].replace(
-        /(\d)(?=(\d\d\d)+(?!\d))/g,
-        '$1' + thousands
-      );
-      const centsAmount = parts[1] ? decimal + parts[1] : '';
-
-      return dollarsAmount + centsAmount;
+      var fixed = (num / 100).toFixed(precision);
+      var parts = fixed.split('.');
+      var left  = parts[0].replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1' + thousands);
+      return parts[1] ? left + decimal + parts[1] : left;
     }
 
-    switch (formatString.match(placeholderRegex)[1]) {
+    var placeholder = /\{\{\s*(\w+)\s*\}\}/;
+    var key = (fmt.match(placeholder) || [])[1] || 'amount';
+
+    var value;
+    switch (key) {
       case 'amount':
-        value = formatWithDelimiters(cents, 2);
-        break;
+        value = delimit(cents, 2); break;
       case 'amount_no_decimals':
-        value = formatWithDelimiters(cents, 0);
-        break;
+        value = delimit(cents, 0); break;
       case 'amount_with_comma_separator':
-        value = formatWithDelimiters(cents, 2, '.', ',');
-        break;
+        value = delimit(cents, 2, '.', ','); break;
       case 'amount_no_decimals_with_comma_separator':
-        value = formatWithDelimiters(cents, 0, '.', ',');
-        break;
+        value = delimit(cents, 0, '.', ','); break;
       case 'amount_no_decimals_with_space_separator':
-        value = formatWithDelimiters(cents, 0, ' ');
-        break;
+        value = delimit(cents, 0, ' '); break;
       default:
-        value = formatWithDelimiters(cents, 2);
+        value = delimit(cents, 2);
     }
 
-    return formatString.replace(placeholderRegex, value);
+    return fmt.replace(placeholder, value);
   }
-}
-
-// Initialize when DOM is ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    new ProductGridPopup();
-  });
-} else {
-  new ProductGridPopup();
-}
+})();

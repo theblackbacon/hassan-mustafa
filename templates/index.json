@@ -281,10 +281,63 @@
         "padding-block-start": 48,
         "padding-block-end": 48
       }
+    },
+    "shop_the_look_grid": {
+      "type": "product-grid-custom",
+      "settings": {
+        "heading": "Tisso vison in the wild"
+      },
+      "blocks": {
+        "stl_product_1": {
+          "type": "product_cell",
+          "settings": {
+            "product": ""
+          }
+        },
+        "stl_product_2": {
+          "type": "product_cell",
+          "settings": {
+            "product": ""
+          }
+        },
+        "stl_product_3": {
+          "type": "product_cell",
+          "settings": {
+            "product": ""
+          }
+        },
+        "stl_product_4": {
+          "type": "product_cell",
+          "settings": {
+            "product": ""
+          }
+        },
+        "stl_product_5": {
+          "type": "product_cell",
+          "settings": {
+            "product": ""
+          }
+        },
+        "stl_product_6": {
+          "type": "product_cell",
+          "settings": {
+            "product": ""
+          }
+        }
+      },
+      "block_order": [
+        "stl_product_1",
+        "stl_product_2",
+        "stl_product_3",
+        "stl_product_4",
+        "stl_product_5",
+        "stl_product_6"
+      ]
     }
   },
   "order": [
     "hero_jVaWmY",
-    "product_list_fa6P9H"
+    "product_list_fa6P9H",
+    "shop_the_look_grid"
   ]
 }
