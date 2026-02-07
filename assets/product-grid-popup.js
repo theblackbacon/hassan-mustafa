@@ -243,26 +243,38 @@
     if (!elVariants) return;
     elVariants.innerHTML = '';
 
+    /*
+     * Normalise options – the /products/<handle>.js endpoint may return:
+     *   • strings:  ["Color", "Size"]
+     *   • objects:  [{name: "Color", position: 1, values: [...]}, …]
+     * We flatten to a plain string array so .toLowerCase() always works.
+     */
+    var optionNames = (product.options || []).map(function (opt) {
+      return typeof opt === 'string' ? opt : (opt && opt.name ? opt.name : String(opt));
+    });
+
+    // Cache the normalised list so resolveVariant can use it too
+    product._optionNames = optionNames;
+
     // Skip rendering if there are no meaningful options
     if (
-      !product.options ||
-      product.options.length === 0 ||
-      (product.options.length === 1 && product.options[0] === 'Title')
+      optionNames.length === 0 ||
+      (optionNames.length === 1 && optionNames[0] === 'Title')
     ) {
       return;
     }
 
-    product.options.forEach(function (optionName, idx) {
-      const position = idx + 1;                       // Shopify uses 1-based option positions
-      const values   = getUniqueOptionValues(product, position);
+    optionNames.forEach(function (optionName, idx) {
+      var position = idx + 1;                         // Shopify uses 1-based option positions
+      var values   = getUniqueOptionValues(product, position);
       if (values.length === 0) return;
 
       // Wrapper
-      const group = document.createElement('div');
+      var group = document.createElement('div');
       group.className = 'stl__variant-group';
 
       // Label
-      const label = document.createElement('span');
+      var label = document.createElement('span');
       label.className = 'stl__variant-label';
       label.textContent = optionName;
       group.appendChild(label);
@@ -367,9 +379,14 @@
   function resolveVariant() {
     if (!currentProduct) return;
 
+    // Use the normalised option-name list (populated by renderVariantSelectors)
+    var optionNames = currentProduct._optionNames || (currentProduct.options || []).map(function (opt) {
+      return typeof opt === 'string' ? opt : (opt && opt.name ? opt.name : String(opt));
+    });
+
     const match = currentProduct.variants.find(function (v) {
       return Object.keys(selections).every(function (optName) {
-        var idx = currentProduct.options.indexOf(optName);
+        var idx = optionNames.indexOf(optName);
         if (idx === -1) return true;
         return v['option' + (idx + 1)] === selections[optName];
       });
