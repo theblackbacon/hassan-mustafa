@@ -82,35 +82,36 @@
         </svg>
       </button>
 
-      <div class="stl__popup-body">
-        {%- comment -%} Thumbnail {%- endcomment -%}
+      {%- comment -%} Top row: thumbnail + product info (side by side) {%- endcomment -%}
+      <div class="stl__popup-header">
         <div class="stl__popup-thumb">
           <img src="" alt="" id="stlPopupImg" />
         </div>
-
-        {%- comment -%} Details column {%- endcomment -%}
-        <div class="stl__popup-details">
+        <div class="stl__popup-info">
           <h3 class="stl__popup-title" id="stlPopupTitle"></h3>
           <p  class="stl__popup-price" id="stlPopupPrice"></p>
           <p  class="stl__popup-desc"  id="stlPopupDesc"></p>
-
-          {%- comment -%} Variant selectors (rendered by JS) {%- endcomment -%}
-          <div class="stl__popup-variants" id="stlPopupVariants"></div>
-
-          {%- comment -%} Add-to-cart form {%- endcomment -%}
-          <form id="stlAddToCartForm" class="stl__popup-form" action="/cart/add" method="post">
-            <input type="hidden" name="id" id="stlVariantId" value="">
-            <input type="hidden" name="quantity" value="1">
-
-            <button type="submit" class="stl__popup-atc" id="stlAtcBtn">
-              <span class="stl__popup-atc-text">ADD TO CART</span>
-              <svg class="stl__popup-atc-arrow" width="24" height="12" viewBox="0 0 24 12" fill="none" aria-hidden="true">
-                <line x1="0" y1="6" x2="22" y2="6" stroke="currentColor" stroke-width="1.5"/>
-                <polyline points="17,1 22,6 17,11" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </button>
-          </form>
         </div>
+      </div>
+
+      {%- comment -%} Full-width bottom: variants + Add to Cart {%- endcomment -%}
+      <div class="stl__popup-body">
+        {%- comment -%} Variant selectors (rendered dynamically by JS) {%- endcomment -%}
+        <div class="stl__popup-variants" id="stlPopupVariants"></div>
+
+        {%- comment -%} Add-to-cart form {%- endcomment -%}
+        <form id="stlAddToCartForm" class="stl__popup-form" action="/cart/add" method="post">
+          <input type="hidden" name="id" id="stlVariantId" value="">
+          <input type="hidden" name="quantity" value="1">
+
+          <button type="submit" class="stl__popup-atc" id="stlAtcBtn">
+            <span class="stl__popup-atc-text">ADD TO CART</span>
+            <svg class="stl__popup-atc-arrow" width="24" height="12" viewBox="0 0 24 12" fill="none" aria-hidden="true">
+              <line x1="0" y1="6" x2="22" y2="6" stroke="currentColor" stroke-width="1.5"/>
+              <polyline points="17,1 22,6 17,11" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </form>
       </div>
     </div>
   </div>
@@ -281,15 +282,16 @@
   }
 
   /* ── Popup body layout ── */
-  .stl__popup-body {
+  .stl__popup-header {
     display: flex;
     gap: 0;
+    border-bottom: 1px solid #eee;
   }
 
-  /* ── Thumbnail ── */
+  /* ── Thumbnail (top-left) ── */
   .stl__popup-thumb {
     flex: 0 0 140px;
-    min-height: 140px;
+    height: 140px;
     background: #f0f0f0;
     overflow: hidden;
   }
@@ -300,33 +302,34 @@
     display: block;
   }
 
-  /* ── Details column ── */
-  .stl__popup-details {
+  /* ── Product info (top-right, beside thumb) ── */
+  .stl__popup-info {
     flex: 1;
-    padding: 20px 24px 24px 20px;
+    padding: 16px 20px 16px 16px;
     display: flex;
     flex-direction: column;
+    justify-content: center;
     min-width: 0;
   }
 
   .stl__popup-title {
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 600;
     margin: 0 0 4px;
     color: #1a1a1a;
     line-height: 1.3;
   }
   .stl__popup-price {
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 600;
-    margin: 0 0 10px;
+    margin: 0 0 8px;
     color: #1a1a1a;
   }
   .stl__popup-desc {
     font-size: 11px;
-    line-height: 1.7;
+    line-height: 1.65;
     color: #777;
-    margin: 0 0 16px;
+    margin: 0;
     /* Clamp long descriptions */
     display: -webkit-box;
     -webkit-line-clamp: 4;
@@ -334,12 +337,20 @@
     overflow: hidden;
   }
 
+  /* ── Full-width body below header (variants + ATC) ── */
+  .stl__popup-body {
+    padding: 20px 24px 24px;
+  }
+
   /* ── Variant selectors ── */
   .stl__popup-variants {
-    margin-bottom: 16px;
+    margin-bottom: 20px;
   }
   .stl__variant-group {
-    margin-bottom: 14px;
+    margin-bottom: 16px;
+  }
+  .stl__variant-group:last-child {
+    margin-bottom: 0;
   }
   .stl__variant-label {
     display: block;
@@ -349,14 +360,15 @@
     margin-bottom: 8px;
   }
 
-  /* Buttons (e.g. Color) */
+  /* Buttons (e.g. Color) – equal-width row matching Figma */
   .stl__variant-btns {
     display: flex;
-    gap: 8px;
+    gap: 0;
     flex-wrap: wrap;
   }
   .stl__variant-btn {
-    padding: 8px 22px;
+    flex: 1 1 0;
+    padding: 10px 16px;
     border: 1.5px solid #d6d6d6;
     background: #fff;
     color: #1a1a1a;
@@ -365,15 +377,21 @@
     cursor: pointer;
     transition: border-color 0.15s, background 0.15s, color 0.15s;
     border-radius: 0;
-    min-width: 64px;
+    min-width: 0;
     text-align: center;
+  }
+  /* Collapse shared borders between adjacent buttons */
+  .stl__variant-btn + .stl__variant-btn {
+    border-left: none;
   }
   .stl__variant-btn:hover {
     border-color: #1a1a1a;
+    z-index: 1;
   }
   .stl__variant-btn.is-active {
     border-color: #1a1a1a;
     border-left: 3px solid #1a1a1a;
+    font-weight: 600;
   }
 
   /* Dropdown (e.g. Size) */
@@ -398,6 +416,9 @@
   }
 
   /* ── Add to Cart button ── */
+  .stl__popup-form {
+    margin-top: 4px;
+  }
   .stl__popup-atc {
     display: flex;
     align-items: center;
@@ -413,13 +434,15 @@
     letter-spacing: 1.8px;
     text-transform: uppercase;
     cursor: pointer;
-    transition: background 0.2s, opacity 0.2s;
+    transition: background 0.3s ease, transform 0.2s ease;
     border-radius: 0;
     font-family: inherit;
-    margin-top: auto;
   }
   .stl__popup-atc:hover {
     background: #333;
+  }
+  .stl__popup-atc:hover .stl__popup-atc-arrow {
+    transform: translateX(5px);
   }
   .stl__popup-atc:disabled {
     opacity: 0.5;
@@ -427,6 +450,7 @@
   }
   .stl__popup-atc-arrow {
     flex-shrink: 0;
+    transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   }
 
   /* ── Responsive ── */
@@ -463,16 +487,19 @@
       -webkit-overflow-scrolling: touch;
       border-radius: 8px 8px 0 0;
     }
-    .stl__popup-body {
-      flex-direction: column;
+    .stl__popup-header {
+      flex-direction: column;          /* stack image above info */
     }
     .stl__popup-thumb {
       flex: 0 0 auto;
       height: 200px;
       width: 100%;
     }
-    .stl__popup-details {
-      padding: 16px 16px 20px;
+    .stl__popup-info {
+      padding: 14px 16px;
+    }
+    .stl__popup-body {
+      padding: 0 16px 20px;
     }
     .stl__popup-title {
       font-size: 15px;
@@ -483,7 +510,6 @@
     .stl__popup-desc {
       font-size: 12px;
       -webkit-line-clamp: 3;
-      margin-bottom: 12px;
     }
 
     /* -- Variant buttons stack nicely on mobile -- */
@@ -525,6 +551,9 @@
     }
     .stl__popup-thumb {
       height: 160px;
+    }
+    .stl__popup-body {
+      padding: 0 12px 16px;
     }
     .stl__variant-btn {
       max-width: 100%;                 /* full-width buttons on tiny screens */
